@@ -3,11 +3,10 @@ import './App.css';
 import ReactTable from 'react-table';
 import 'react-table/react-table.css'
 
-const interestedExhanges = [
-  'Coinbase',
-  'Bittrex',
-  'QuadrigaCX'
-]
+const lowestPrice = (array) => {
+  const price = array.map(item => item.last).sort();
+  return price[0];
+}
 
 class App extends Component {
   constructor() {
@@ -18,49 +17,26 @@ class App extends Component {
   }
   componentDidMount() {
     let exhangesArray = [];
-    fetch('https://min-api.cryptocompare.com/data/all/exchanges')
+    // fetch('https://min-api.cryptocompare.com/data/all/exchanges')
+    fetch('https://api.cbix.ca/v1/index')
       .then(response => response.json())
       .then(exchanges => {
-        console.log('exchanges', Object.keys(exchanges))
-        const interested = Object.keys(exchanges)
-          .filter(exhangesSym => {
-            return (
-              exhangesSym === 'Coinbase' ||
-              exhangesSym === 'QuadrigaCX' ||
-              exhangesSym === 'Kraken' ||
-              exhangesSym === 'Poloniex' ||
-              exhangesSym === 'Bitstamp' ||
-              exhangesSym === 'Bitfinex' ||
-              exhangesSym === 'BitTrex' ||
-              exhangesSym === 'Gemini'
-            )
-          })
-        exhangesArray = interested;
-        const requests = interested.map(exhangesSym => {
-          return `https://min-api.cryptocompare.com/data/price?fsym=BTC&tsyms=USD&e=${exhangesSym}&extraParams=your_app_name`
+        const cleanData = exchanges.exchanges.map((exch, i) => {
+          return {
+            name: exch.name,
+            currency: 'CAD',
+            price: exch.last,
+            volume: exch.volume_24hour,
+            arb: lowestPrice(exchanges.exchanges)/exch.last
+          }
+
         })
-        Promise.all(requests.map(url => fetch(url)))
-          .then(resp => Promise.all(resp.map(r => r.json()) ))
-          .then(e => {
-            console.log(exhangesArray[0], e);
-            return e
-          })
-          .then((data) => {
-            const cleanData = data.map((exch, i) => {
-              return {
-                name: exhangesArray[i],
-                currency: Object.keys(exch),
-                price: exch.USD
-              }
-            })
-            this.setState({
-              data: cleanData
-            })
-          })
+        this.setState({
+          data: cleanData
+        })
       })
   }
   render() {
-
     const columns = [{
       Header: 'Exchange Name',
       accessor: 'name' // String-based value accessors!
@@ -72,6 +48,14 @@ class App extends Component {
       id: 'price',
       Header: 'Price',
       accessor: d => d.price // Custom value accessors!
+    }, {
+      id: 'arb',
+      Header: '%arb',
+      accessor: d => d.arb // Custom value accessors!
+    }, {
+      id: 'volume',
+      Header: 'Volume 24h',
+      accessor: d => d.volume // Custom value accessors!
     }]
     if (!this.state.data) {
       return <h1>waiting</h1>
